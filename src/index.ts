@@ -1,4 +1,4 @@
-import { Platform, processColor } from "react-native";
+import { Linking, Platform, processColor } from "react-native";
 import NativeModule from "./specs/NativeRNSwanBrowser";
 
 export type AnimationType = "fade" | "slide";
@@ -52,19 +52,50 @@ export const closeBrowser = (): void => {
 };
 
 // Open auth session for OAuth flows
-// Uses ASWebAuthenticationSession on iOS which handles redirects natively
+// iOS: Uses ASWebAuthenticationSession which handles redirects natively
+// Android: Uses Custom Tabs + Linking to intercept redirect URL
 export const openAuthSession = (
   url: string,
   redirectUrl: string,
   options: AuthSessionOptions = {},
 ): Promise<AuthSessionResult> => {
-  if (Platform.OS !== "ios") {
-    return Promise.reject(new Error("openAuthSession is only supported on iOS"));
+  // iOS handles everything natively via ASWebAuthenticationSession
+  if (Platform.OS === "ios") {
+    return NativeModule.openAuthSession(url, redirectUrl, {
+      prefersEphemeralSession: options.prefersEphemeralSession ?? true,
+    }) as Promise<AuthSessionResult>;
   }
 
-  return NativeModule.openAuthSession(url, redirectUrl, {
-    prefersEphemeralSession: options.prefersEphemeralSession ?? true,
-  }) as Promise<AuthSessionResult>;
+  // Android: Race between redirect URL and user cancel
+  return new Promise((resolve) => {
+    // Extract scheme from redirectUrl (e.g., "myapp://callback" -> "myapp")
+    const schemeMatch = redirectUrl.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//);
+    const scheme = schemeMatch ? schemeMatch[1] : "";
+
+    const handleUrl = ({ url: incomingUrl }: { url: string }) => {
+      if (incomingUrl.startsWith(scheme + "://")) {
+        cleanup();
+        resolve({ type: "success", url: incomingUrl });
+      }
+    };
+
+    const subscription = Linking.addEventListener("url", handleUrl);
+
+    const cleanup = () => {
+      subscription.remove();
+    };
+
+    // Open browser, native module will resolve with cancel if user closes
+    NativeModule.openAuthSession(url, redirectUrl, {
+      prefersEphemeralSession: options.prefersEphemeralSession ?? true,
+    }).then((result) => {
+      // Only handle cancel here, success is handled by Linking
+      if ((result as AuthSessionResult).type === "cancel") {
+        cleanup();
+        resolve({ type: "cancel" });
+      }
+    });
+  });
 };
 
 // Cancel any in-progress auth session

@@ -13,7 +13,7 @@ type AuthSessionOptions = {
   prefersEphemeralSession?: boolean;
 };
 
-// Auth session result - consistent across platforms
+// Auth session result, consistent across platforms
 // type: "success" | "cancel", url only present on success
 type AuthSessionResult = {
   type: string;

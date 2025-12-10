@@ -9,6 +9,11 @@ import com.facebook.react.module.annotations.ReactModule
 class RNSwanBrowserModule(reactContext: ReactApplicationContext) :
   NativeRNSwanBrowserSpec(reactContext) {
 
+  init {
+    // Register lifecycle listener to detect when user cancels auth session
+    RNSwanBrowserModuleImpl.initialize(reactContext)
+  }
+
   override fun getName(): String {
     return RNSwanBrowserModuleImpl.NAME
   }
@@ -19,5 +24,14 @@ class RNSwanBrowserModule(reactContext: ReactApplicationContext) :
 
   override fun close() {
     // noop on Android since the modal is closed by deep-link
+  }
+
+  // Auth session methods
+  override fun openAuthSession(url: String, redirectUrl: String, options: ReadableMap, promise: Promise) {
+    RNSwanBrowserModuleImpl.openAuthSession(reactApplicationContext, url, redirectUrl, options, promise)
+  }
+
+  override fun cancelAuthSession() {
+    RNSwanBrowserModuleImpl.cancelAuthSession()
   }
 }

@@ -124,7 +124,7 @@ RCT_EXPORT_METHOD(close) {
   return RCTKeyWindow();
 }
 
-// Open auth session for OAuth flows - uses ASWebAuthenticationSession
+// Open auth session using ASWebAuthenticationSession
 #ifdef RCT_NEW_ARCH_ENABLED
 - (void)openAuthSession:(NSString *)url
             redirectUrl:(NSString *)redirectUrl

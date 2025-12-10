@@ -83,7 +83,7 @@ openBrowser("https://swan.io", {
 
 ### openAuthSession(url: string, redirectUrl: string, options?: AuthSessionOptions)
 
-Opens an authentication session using **[ASWebAuthenticationSession](https://developer.apple.com/documentation/authenticationservices/aswebauthenticationsession)** on iOS. Returns a promise that resolves when the `redirectUrl` is visited or the user cancels.
+Opens an authentication session using **[ASWebAuthenticationSession](https://developer.apple.com/documentation/authenticationservices/aswebauthenticationsession)** on iOS and **[Custom Tabs](https://developer.chrome.com/docs/android/custom-tabs)** on Android. Returns a promise that resolves when the `redirectUrl` is visited or the user cancels.
 
 ```tsx
 import { openAuthSession } from "@swan-io/react-native-browser";
@@ -103,7 +103,21 @@ openAuthSession("https://example.com/oauth/authorize", "com.company.myapp://call
 ```
 
 > [!NOTE]
-> `openAuthSession` handles the redirect automatically. No manual `closeBrowser()` call or deep link listener is needed.
+> `openAuthSession` handles the redirect automatically on both platforms. No manual `closeBrowser()` call or deep link listener is needed.
+
+#### Ephemeral sessions on Android
+
+By default, `openAuthSession` uses ephemeral sessions (no shared cookies/state with Chrome). This requires `androidx.browser:browser:1.9.0+`, which needs Android Gradle Plugin 8.9.1+, compileSdk 36+, and React Native 0.81+.
+
+To opt-in, add to your root `android/build.gradle`:
+
+```gradle
+ext {
+  androidXBrowserVersion = "1.9.0"
+}
+```
+
+For older setups, auth sessions still work but share state with Chrome.
 
 ### cancelAuthSession()
 
