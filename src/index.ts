@@ -1,4 +1,4 @@
-import { processColor } from "react-native";
+import { Platform, processColor } from "react-native";
 import NativeModule from "./specs/NativeRNSwanBrowser";
 
 export type AnimationType = "fade" | "slide";
@@ -9,6 +9,16 @@ export type Options = {
   dismissButtonStyle?: DismissButtonStyle;
   barTintColor?: string;
   controlTintColor?: string;
+};
+
+// Auth session types
+export type AuthSessionOptions = {
+  prefersEphemeralSession?: boolean;
+};
+
+export type AuthSessionResult = {
+  type: "success" | "cancel";
+  url?: string;
 };
 
 const convertColorToNumber = (
@@ -39,4 +49,25 @@ export const openBrowser = (
 
 export const closeBrowser = (): void => {
   NativeModule.close();
+};
+
+// Open auth session for OAuth flows
+// Uses ASWebAuthenticationSession on iOS which handles redirects natively
+export const openAuthSession = (
+  url: string,
+  redirectUrl: string,
+  options: AuthSessionOptions = {},
+): Promise<AuthSessionResult> => {
+  if (Platform.OS !== "ios") {
+    return Promise.reject(new Error("openAuthSession is only supported on iOS"));
+  }
+
+  return NativeModule.openAuthSession(url, redirectUrl, {
+    prefersEphemeralSession: options.prefersEphemeralSession ?? true,
+  }) as Promise<AuthSessionResult>;
+};
+
+// Cancel any in-progress auth session
+export const cancelAuthSession = (): void => {
+  NativeModule.cancelAuthSession();
 };

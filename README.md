@@ -81,6 +81,40 @@ openBrowser("https://swan.io", {
 > [!IMPORTANT]
 > On Android, the Chrome app must be opened at least once for this to work — a step often overlooked when using emulators in development.
 
+### openAuthSession(url: string, redirectUrl: string, options?: AuthSessionOptions)
+
+Opens an authentication session using **[ASWebAuthenticationSession](https://developer.apple.com/documentation/authenticationservices/aswebauthenticationsession)** on iOS. Returns a promise that resolves when the `redirectUrl` is visited or the user cancels.
+
+```tsx
+import { openAuthSession } from "@swan-io/react-native-browser";
+
+openAuthSession("https://example.com/oauth/authorize", "com.company.myapp://callback", {
+  prefersEphemeralSession: true, // don't share session with system browser (default: true)
+}).then((result) => {
+  if (result.type === "success") {
+    console.log(result.url); // com.company.myapp://callback?code=...
+  }
+  if (result.type === "cancel") {
+    console.log("User cancelled");
+  }
+}).catch((error) => {
+  console.error(error);
+});
+```
+
+> [!NOTE]
+> `openAuthSession` handles the redirect automatically. No manual `closeBrowser()` call or deep link listener is needed.
+
+### cancelAuthSession()
+
+Cancels any in-progress authentication session.
+
+```tsx
+import { cancelAuthSession } from "@swan-io/react-native-browser";
+
+cancelAuthSession();
+```
+
 ## Handle deeplinks
 
 In order to receive deeplink on browser close, you have to setup them first. We **highly** recommend defining a custom schema + url for this specific task. For example, `com.company.myapp://close`.

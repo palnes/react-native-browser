@@ -6,6 +6,8 @@
 @interface RNSwanBrowser() <SFSafariViewControllerDelegate, UIAdaptivePresentationControllerDelegate>
 
 @property (nonatomic, strong) SFSafariViewController *safariVC;
+// Auth session instance
+@property (nonatomic, strong) ASWebAuthenticationSession *authSession;
 
 @end
 
@@ -114,6 +116,75 @@ RCT_EXPORT_METHOD(close) {
     [_safariVC dismissViewControllerAnimated:true completion:^{
       [self handleOnClose];
     }];
+  }
+}
+
+// Presentation anchor for ASWebAuthenticationSession
+- (ASPresentationAnchor)presentationAnchorForWebAuthenticationSession:(ASWebAuthenticationSession *)session {
+  return RCTKeyWindow();
+}
+
+// Open auth session for OAuth flows - uses ASWebAuthenticationSession
+#ifdef RCT_NEW_ARCH_ENABLED
+- (void)openAuthSession:(NSString *)url
+            redirectUrl:(NSString *)redirectUrl
+                options:(JS::NativeRNSwanBrowser::AuthSessionOptions &)options
+                resolve:(RCTPromiseResolveBlock)resolve
+                 reject:(RCTPromiseRejectBlock)reject {
+
+  BOOL prefersEphemeralSession = options.prefersEphemeralSession().value_or(false);
+
+#else
+RCT_EXPORT_METHOD(openAuthSession:(NSString *)url
+                      redirectUrl:(NSString *)redirectUrl
+                          options:(NSDictionary * _Nonnull)options
+                          resolve:(RCTPromiseResolveBlock)resolve
+                           reject:(RCTPromiseRejectBlock)reject) {
+
+  BOOL prefersEphemeralSession = [[options valueForKey:@"prefersEphemeralSession"] boolValue];
+
+#endif
+  if (_authSession != nil) {
+    return reject(@"auth_session_in_progress", @"An auth session is already in progress", nil);
+  }
+
+  NSString *scheme = [[NSURL URLWithString:redirectUrl] scheme];
+
+  _authSession = [[ASWebAuthenticationSession alloc]
+    initWithURL:[NSURL URLWithString:url]
+    callbackURLScheme:scheme
+    completionHandler:^(NSURL *callbackURL, NSError *error) {
+      self->_authSession = nil;
+
+      if (callbackURL != nil) {
+        resolve(@{@"type": @"success", @"url": callbackURL.absoluteString});
+      } else if (error != nil && error.code == ASWebAuthenticationSessionErrorCodeCanceledLogin) {
+        resolve(@{@"type": @"cancel"});
+      } else if (error != nil) {
+        reject(@"auth_session_error", error.localizedDescription, error);
+      } else {
+        reject(@"auth_session_error", @"Unknown error", nil);
+      }
+    }];
+
+  _authSession.prefersEphemeralWebBrowserSession = prefersEphemeralSession;
+  _authSession.presentationContextProvider = self;
+
+  if (![_authSession start]) {
+    _authSession = nil;
+    reject(@"auth_session_failed", @"Failed to start auth session", nil);
+  }
+}
+
+// Cancel any in-progress auth session
+#ifdef RCT_NEW_ARCH_ENABLED
+- (void)cancelAuthSession {
+#else
+RCT_EXPORT_METHOD(cancelAuthSession) {
+#endif
+  if (_authSession != nil) {
+    [_authSession cancel];
+    _authSession = nil;
   }
 }
 
